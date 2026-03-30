@@ -78,10 +78,7 @@ export async function exportCurriculumToWord(state: AppState, courseId: 'A1' | '
           const originalObj = (allKnownIndicators as any[]).find((d:any) => d.code === code);
           const originalContent = originalObj ? originalObj.content : '';
           if (adj?.adjusted) {
-            const pureAdj = adj.adjustedDesc
-              .replace(/\[\+([^\]]+)\+\]/g, '$1')
-              .replace(/\[\-([^\]]+)\-\]/g, '');
-            return `${code}m-${pureAdj}`;
+            return `${code}m-${adj.adjustedDesc}`;
           }
           return `${code}-${originalContent}`;
         }).join('\n');
@@ -210,11 +207,8 @@ export async function exportIgpToWord(state: AppState, courseId: 'A1' | 'A2') {
       const adj = activeIgp.adjustments.find(a => a.indicatorCode === code);
 
       if (adj && adj.adjustedDesc) {
-        // 有微調：只顯示「代碼m-(微調後)內容」
-        const pureAdj = adj.adjustedDesc
-          .replace(/\[\+([^\]]+)\+\]/g, '$1')
-          .replace(/\[\-([^\]]+)\-\]/g, '');
-        return `${code}m-${pureAdj}`;
+        // 有微調：直接傳入內容，保留調整標記供轉換器處理
+        return `${code}m-${adj.adjustedDesc}`;
       } else {
         // 無微調：顯示「代碼-原始內容」
         return `${code}-${originalContent}`;
