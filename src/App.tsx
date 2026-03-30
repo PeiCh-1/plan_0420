@@ -72,7 +72,7 @@ const Layout = () => {
 function App() {
   return (
     <AppProvider>
-      <BrowserRouter>
+      <BrowserRouter basename={import.meta.env.BASE_URL}>
         <Layout />
       </BrowserRouter>
     </AppProvider>
