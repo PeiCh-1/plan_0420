@@ -3,18 +3,26 @@ import os
 
 def patch_curriculum(path):
     doc = Document(path)
-    # Paragraphs replacement for Semester boundaries
-    has_found_semester_1 = False
-    for p in doc.paragraphs:
-        if "第一學期特殊教育" in p.text:
-            p.text = "{#isFirstSemester}\n高雄市楠梓區莒光國小{AcademicYear}學年度第一學期特殊教育課程計畫"
-            has_found_semester_1 = True
-        elif "第二學期特殊教育" in p.text:
-            if has_found_semester_1:
-                p.insert_paragraph_before("{/isFirstSemester}")
-            p.text = "{#isSecondSemester}\n高雄市楠梓區莒光國小{AcademicYear}學年度第二學期特殊教育課程計畫"
     
-    doc.add_paragraph("{/isSecondSemester}")
+    # 檢查是否已經被處理過（等冪性 check）
+    for p in doc.paragraphs:
+        if "{#isFirstSemester}" in p.text:
+            print(f"Skipping paragraph patching for {path} as it's already patched.")
+            break
+    else:
+        # Paragraphs replacement for Semester boundaries
+        has_found_semester_1 = False
+        for p in doc.paragraphs:
+            if "第一學期特殊教育" in p.text:
+                p.text = "{#isFirstSemester}\n" + p.text.strip()
+                has_found_semester_1 = True
+            elif "第二學期特殊教育" in p.text:
+                if has_found_semester_1:
+                    p.insert_paragraph_before("{/isFirstSemester}")
+                p.text = "{#isSecondSemester}\n" + p.text.strip()
+        
+        doc.add_paragraph("{/isSecondSemester}")
+
 
     # Tables replacement
     for t in doc.tables:

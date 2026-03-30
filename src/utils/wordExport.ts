@@ -6,9 +6,10 @@ import allKnownIndicators from '../data/learning_performances.json';
 import coreCompetenciesData from '../data/core_competencies.json';
 
 /**
- * 下載並讀取 Word 模板檔案
+ * 下載並讀取 Word 模板檔案（自動使用 Vite base URL，相容 dev 與 GH Pages）
  */
-async function getTemplateFile(url: string): Promise<ArrayBuffer> {
+async function getTemplateFile(filename: string): Promise<ArrayBuffer> {
+  const url = `${import.meta.env.BASE_URL}${filename}`;
   const response = await fetch(url);
   if (!response.ok) {
     throw new Error(`無法載入模板檔案: ${url}`);
@@ -137,9 +138,14 @@ export async function exportCurriculumToWord(state: AppState, courseId: 'A1' | '
 
     const courseSuffix = isTwoCourses ? 'A1-A2' : (a1Settings?.name || '');
     saveAs(out, `資優課程計畫_${settings.academicYear}_${courseSuffix}.docx`);
-  } catch (error) {
-    console.error('Word 匯出失敗', error);
-    alert('匯出 Word 失敗：請確認已放置正確的 template.docx 或是該檔案是否內含錯誤的變數標籤。');
+  } catch (error: any) {
+    console.error('Word 匯出失敗 (curriculum):', error);
+    // 顯示 docxtemplater 詳細錯誤
+    if (error?.properties?.errors) {
+      console.error('Docxtemplater errors:', JSON.stringify(error.properties.errors, null, 2));
+    }
+    const msg = error?.properties?.errors?.map((e: any) => e.message || JSON.stringify(e)).join('; ') || error?.message || '未知錯誤';
+    alert(`匯出 Word 失敗：${msg}`);
   }
 }
 
