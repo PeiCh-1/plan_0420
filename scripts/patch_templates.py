@@ -60,7 +60,7 @@ def patch_curriculum(path):
             # Setup row 5 as the docxtemplater loop row
             row5 = t.rows[5]
             row5.cells[0].text = "{#Weeks}{Week}"
-            row5.cells[1].text = "{Indicators}"
+            row5.cells[1].text = "{@Indicators}"
             row5.cells[2].text = "{LessonFocus}"
             row5.cells[3].text = "{Assessment}"
             # DO NOT blank cell 4, it is merged with cell 3!
@@ -69,10 +69,19 @@ def patch_curriculum(path):
             row5.cells[7].text = "{Notes}{/Weeks}"
             
             # Delete rows 6 through end
-            # python-docx doesn't have an easy delete row, we have to use XML manipulation
             for i in range(len(t.rows)-1, 5, -1):
                 tr = t.rows[i]._tr
                 tr.getparent().remove(tr)
+
+    # 插入備註文字段落 (表格後)
+    notes_parts = [
+        "1.本學年實際上課日數及補休補班調整，仍依教育局公告之本學年度重要行事曆辦理。",
+        "2.融入議題參考：性別平等教育、人權教育、環境教育、海洋教育、科技教育、能源教育、家庭教育、原住民族教育、品德教育、生命教育、法治教育、資訊教育、安全教育、防災教育、生涯規劃教育、多元文化教育、閱讀素養教育、戶外教育、國際教育…等（上述議題係參考「十二年國教課綱議題融入說明手冊」所列出，各校亦可選擇適合之議題填入）。",
+        "3.評量方式填寫參考：口頭評量、紙筆評量、實作評量、教師觀察、學生自評、同儕互評或其他適合之評量方式。"
+    ]
+    for note in notes_parts:
+        p = doc.add_paragraph(note)
+        p.style.font.size = 101600 # Approx 8-9 pts? or just use default
 
     doc.save(path)
     print(f"Patched {path}")
@@ -82,9 +91,9 @@ def patch_igp(path):
     
     # Table replacement
     for t in doc.tables:
-        if len(t.rows) >= 6:
-            # Table 0 is the single IGP table, no docxtemplater row-loop needed since we combined it
-            # We will just inject {AllIndicators} and {GlobalStrategies}
+        if len(t.rows) >= 2:
+            # Table 0 is the single IGP table
+
             
             # Row 0: Course Name
             for i, c in enumerate(t.rows[0].cells):
@@ -100,17 +109,22 @@ def patch_igp(path):
             row2.cells[0].text = "1"
             
             # Merge cell 1 to 3 to hold the indicator text
-            row2.cells[1].text = "{AllIndicators}"
+            for j in range(1, 4):
+                if j < len(row2.cells):
+                    row2.cells[j].text = "{@AllIndicators}"
             # DO NOT blank cell 2, it is merged with cell 1!
 
             # Strategy column: The last cell in the row
             row2.cells[-1].text = "{GlobalStrategies}"
+
             # DO NOT blank cell -2, it is merged
             
-            # Clear row 3, 4, 5
-            for i in range(5, 2, -1):
+            # Clear row 3, 4, 5 (Only if they exist)
+            current_count = len(t.rows)
+            for i in range(min(5, current_count - 1), 2, -1):
                 tr = t.rows[i]._tr
                 tr.getparent().remove(tr)
+
 
     doc.save(path)
     print(f"Patched {path}")

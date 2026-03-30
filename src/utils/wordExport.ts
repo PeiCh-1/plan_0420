@@ -18,6 +18,53 @@ async function getTemplateFile(filename: string): Promise<ArrayBuffer> {
 }
 
 /**
+ * 將包含 [+文字+] (紅字) 與 [-文字-] (紅字+刪除線) 的字串轉換為 Word OOXML
+ */
+function renderRichTextXml(text: string): string {
+  if (!text) return '';
+  
+  // XML 特殊字元轉義
+  const escapeXml = (unsafe: string) => unsafe
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+
+  // 分割字串以處理不同區塊
+  // 規則：[+...+] -> 僅紅字；[-...-] -> 紅字 + 刪除線
+  const regex = /(\[\+[^\]]+\+\]|\[\-[^\]]+\-\])/g;
+  const parts = text.split(regex);
+  
+  let xml = '<w:p>'; // 包裹在一個段落中
+  
+  parts.forEach(part => {
+    if (part.startsWith('[+') && part.endsWith('+]')) {
+      const content = escapeXml(part.slice(2, -2));
+      xml += `<w:r><w:rPr><w:color w:val="FF0000"/></w:rPr><w:t>${content}</w:t></w:r>`;
+    } else if (part.startsWith('[-') && part.endsWith('-]')) {
+      const content = escapeXml(part.slice(2, -2));
+      xml += `<w:r><w:rPr><w:color w:val="FF0000"/><w:strike/></w:rPr><w:t>${content}</w:t></w:r>`;
+    } else if (part) {
+      // 處理內容中的換行，轉換為 <w:br/>
+      const lines = part.split('\n');
+      lines.forEach((line, idx) => {
+        const content = escapeXml(line);
+        if (content) {
+          xml += `<w:r><w:t>${content}</w:t></w:r>`;
+        }
+        if (idx < lines.length - 1) {
+          xml += '<w:r><w:br/></w:r>';
+        }
+      });
+    }
+  });
+  
+  xml += '</w:p>';
+  return xml;
+}
+
+/**
  * 匯出課程規劃為 Word
  */
 export async function exportCurriculumToWord(state: AppState, courseId: 'A1' | 'A2') {
@@ -71,7 +118,7 @@ export async function exportCurriculumToWord(state: AppState, courseId: 'A1' | '
       return {
         Week: weekLabel,
         LessonFocus: lesson.lessonFocus,
-        Indicators: parsedIndicators,
+        Indicators: renderRichTextXml(parsedIndicators),
         Assessment: assessmentOptions.map(opt => lesson.assessmentMethods.includes(opt) ? `◼︎${opt}` : `□${opt}`).join('  '),
         Issues: issuesStr,
         Notes: lesson.notes
@@ -208,7 +255,7 @@ export async function exportIgpToWord(state: AppState, courseId: 'A1' | 'A2') {
       CourseType: courseSettings?.courseType || '必修',
       Teacher: settings.teacher || '',
       CourseName: courseSettings?.customName || courseSettings?.name || '',
-      AllIndicators: allIndicatorsText,
+      AllIndicators: renderRichTextXml(allIndicatorsText),
       GlobalStrategies: globalStrategiesStr
     });
 

@@ -1,73 +1,43 @@
-# React + TypeScript + Vite
+# 高雄市國小資優課程計劃設計平台
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+![Platform Design](https://img.shields.io/badge/Design-Premium-fuchsia) ![Framework](https://img.shields.io/badge/Framework-React-blue) ![Export](https://img.shields.io/badge/Export-Word-blue)
 
-Currently, two official plugins are available:
+這是一個專為高雄市國小資優教育教師設計的專業課程計畫規劃平台。本系統嚴格遵循「高雄市國民小學資優教育課程計畫格式」，透過 AI 技術協助教師高效完成行政報表。
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## 🌟 核心特色
 
-## React Compiler
+- **雙課程 A1/A2 整合**：支援同一學期拆分兩門課程（如：A1 魔術、A2 創意飛行），自動計算週次與合併報表。
+- **AI 智慧指標調適**：整合 Gemini AI，自動根據學生狀態改寫「學習表現」指標，並標記差異化調整過程。
+- **Word 精細化匯出**：一鍵產生符合行政規範的 Word 檔案，支援紅字標示增減內容、自動帶入核心素養與評量方式。
+- **行政規範校對**：自動依照週次生成日期範圍，並內建 108 課綱資優教育領綱指標庫。
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## 🚀 操作流程
 
-## Expanding the ESLint configuration
+### 1. 基本設定
+- 填寫學年度、年級、教師姓名及 API Key。
+- 勾選課程類型（單一課程或 A1/A2 雙課程）。
+- 選擇負責領域並勾選對應的「核心素養」。
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+### 2. 課程規劃
+- 使用 AI 根據課程描述自動產生 21 週教學計畫。
+- 系統會自動篩選合適的學習表現指標與融入議題。
+- 您可以點選指標進行微調，系統會自動追蹤您的修改（`[+新增+]` 或 `[-刪除-]` 語法）。
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+### 3. IGP 個別調整
+- 針對個別學生填寫狀態描述。
+- AI 會從計畫中挑選關鍵指標進行改寫。
+- 可勾選整門課程的綜合調整策略（內容、歷程、環境、評量）。
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+### 4. 匯出成果
+- 點選「一鍵匯出 Word 檔」。
+- 下載後的檔案已包含完整表頭、週期日期、紅字格式標記以及必要之結尾備註。
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+## 🛠 技術架構
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+- **前端**：React (Vite) + Tailwind CSS + Lucide Icons
+- **文件引擎**：Docxtemplater + PizZip
+- **AI 核心**：Google Gemini 2.5 Flash
+- **自動化**：Python-docx Template Patcher
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+---
+*專為提升資優教育行政效能而生。*
