@@ -134,6 +134,47 @@ export async function exportCurriculumToWord(state: AppState, courseId: 'A1' | '
       }).join('\n');
     }
 
+    // 將週次資料整理成編號過的扁平物件，以對應靜態範本中的格子
+    const flattenedData: Record<string, any> = {};
+    for (let i = 0; i < 21; i++) {
+        const lesson = activeLessons[i];
+        if (lesson) {
+            const splitWeek = settings.splitWeek ?? 10;
+            const wCourseId = (isTwoCourses && lesson.weekNumber > splitWeek) ? 'A2' : 'A1';
+            
+            let parsedIndicators = '';
+            if (lesson.learningPerformances.length > 0) {
+              parsedIndicators = lesson.learningPerformances.map(code => {
+                const adj = lesson.performanceAdjustments[code];
+                const originalObj = (allKnownIndicators as any[]).find((d:any) => d.code === code);
+                const originalContent = originalObj ? originalObj.content : '';
+                if (adj?.adjusted) {
+                  return `${code}m-${adj.adjustedDesc}`;
+                }
+                return `${code}-${originalContent}`;
+              }).join('\n');
+            }
+
+            const issuesStr = lesson.issues.length > 0 ? lesson.issues.join('、') : '無';
+            const weekLabel = `第${zhNumbers[lesson.weekNumber] || lesson.weekNumber}週\n(${lesson.dateRange})`;
+
+            flattenedData[`Week${i}_WeekLabel`] = weekLabel;
+            flattenedData[`Week${i}_LessonFocus`] = lesson.lessonFocus;
+            flattenedData[`Week${i}_IndRuns`] = formatRichText(parsedIndicators);
+            flattenedData[`Week${i}_Assessment`] = assessmentOptions.map(opt => lesson.assessmentMethods.includes(opt) ? `◼︎${opt}` : `□${opt}`).join('  ');
+            flattenedData[`Week${i}_Issues`] = issuesStr;
+            flattenedData[`Week${i}_Notes`] = lesson.notes;
+        } else {
+            // 補齊空的週次格式
+            flattenedData[`Week${i}_WeekLabel`] = '';
+            flattenedData[`Week${i}_LessonFocus`] = '';
+            flattenedData[`Week${i}_IndRuns`] = [];
+            flattenedData[`Week${i}_Assessment`] = assessmentOptions.map(() => `□`).join('  ');
+            flattenedData[`Week${i}_Issues`] = '';
+            flattenedData[`Week${i}_Notes`] = '';
+        }
+    }
+
     // 填入所有的變數
     doc.render({
       AcademicYear: settings.academicYear,
@@ -148,7 +189,7 @@ export async function exportCurriculumToWord(state: AppState, courseId: 'A1' | '
       isFirstSemester: settings.semester === '1',
       isSecondSemester: settings.semester === '2',
       CourseDescription: a1Settings?.description || '',
-      Weeks: formattedWeeks
+      ...flattenedData
     });
 
     const out = doc.getZip().generate({
