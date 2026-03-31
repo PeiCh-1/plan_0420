@@ -43,50 +43,48 @@ def patch_curriculum(path):
                 if '設計者/教學者' in c.text and '{Teacher}' not in c.text:
                     c.paragraphs[0].add_run('：{Teacher}')
 
-    # 3. 樣式注入 (學習表現與週次內容)
-    # 根據 inspector 診斷：第 1 到 21 週位於 Row 5 到 Row 25
+    # 3. 樣式注入 (週次動態循環與日期標註)
+    # 我們將表格改造成動態 Row Loop: 刪除 Row 6-25，將 Row 5 設為循環起點
     for t in doc.tables:
         if len(t.rows) >= 25:
-             for i in range(21):
-                row_idx = 5 + i
-                row = t.rows[row_idx]
-                
-                # Column 1: 學習表現 (IndRuns)
-                cell_ind = row.cells[1]
-                if f"{{#Week{i}_IndRuns}}" not in cell_ind.text:
-                    cell_ind.text = ""
-                    p = cell_ind.paragraphs[0]
-                    p.add_run(f"{{#Week{i}_IndRuns}}{{#isAdd}}")
-                    r_add = p.add_run("{text}")
-                    r_add.font.color.rgb = RGBColor(0xFF, 0x00, 0x00)
-                    p.add_run("{/isAdd}{#isDel}")
-                    r_del = p.add_run("{text}")
-                    r_del.font.color.rgb = RGBColor(0xFF, 0x00, 0x00)
-                    r_del.font.strike = True
-                    p.add_run(f"{{/isDel}}{{^isAdd}}{{^isDel}}{{text}}{{/isDel}}{{/isAdd}}{{/Week{i}_IndRuns}}")
-
-                # Column 2: 教學重點
-                cell_focus = row.cells[2]
-                if f"{{Week{i}_LessonFocus}}" not in cell_focus.text:
-                    cell_focus.text = f"{{Week{i}_LessonFocus}}"
-
-                # Column 3: 評量方式
-                cell_assess = row.cells[3]
-                if f"{{Week{i}_Assessment}}" not in cell_assess.text:
-                    cell_assess.text = f"{{Week{i}_Assessment}}"
-
-                # Column 5: 融入議題
-                cell_issues = row.cells[5]
-                if f"{{Week{i}_Issues}}" not in cell_issues.text:
-                    cell_issues.text = f"{{Week{i}_Issues}}"
-
-                # Column 7: 備註
-                cell_notes = row.cells[7]
-                if f"{{Week{i}_Notes}}" not in cell_notes.text:
-                    cell_notes.text = f"{{Week{i}_Notes}}"
+             # 從底層刪除多餘的靜態列 (25 號到 6 號)
+             for i in range(25, 5, -1):
+                tr = t.rows[i]._tr
+                t._tbl.remove(tr)
+             
+             row = t.rows[5]
+             
+             # Cell 0: 週次與標題標記
+             c0 = row.cells[0]
+             c0.text = "{#Weeks}{WeekLabel}"
+             
+             # Cell 1: 學習表現 (IndRuns)
+             c1 = row.cells[1]
+             c1.text = ""
+             p1 = c1.paragraphs[0]
+             p1.add_run("{#IndRuns}{#isAdd}")
+             r_add = p1.add_run("{text}")
+             r_add.font.color.rgb = RGBColor(0xFF, 0x00, 0x00)
+             p1.add_run("{/isAdd}{#isDel}")
+             r_del = p1.add_run("{text}")
+             r_del.font.color.rgb = RGBColor(0xFF, 0x00, 0x00)
+             r_del.font.strike = True
+             p1.add_run("{/isDel}{^isAdd}{^isDel}{text}{/isDel}{/isAdd}{/IndRuns}")
+             
+             # Cell 2: 教學重點
+             row.cells[2].text = "{LessonFocus}"
+             
+             # Cell 3: 評量方式
+             row.cells[3].text = "{Assessment}"
+             
+             # Cell 5: 融入議題
+             row.cells[5].text = "{Issues}"
+             
+             # Cell 7: 備註與循環終止
+             row.cells[7].text = "{Notes}{/Weeks}"
             
     doc.save(path)
-    print(f"Patched Curriculum Template (ALL 21 WEEKS): {path}")
+    print(f"Patched Curriculum Template (Dynamic Row Loop Mode): {path}")
 
 def patch_igp(path):
     if not os.path.exists(path):

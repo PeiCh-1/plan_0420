@@ -64,39 +64,7 @@ export async function exportCurriculumToWord(state: AppState, courseId: 'A1' | '
 
     const zhNumbers = ['零','一','二','三','四','五','六','七','八','九','十','十一','十二','十三','十四','十五','十六','十七','十八','十九','二十','二十一','二十二','二十三','二十四','二十五'];
 
-    // 將週次資料整理成 docxtemplater 接受的陣列格式
-    const formattedWeeks = activeLessons.map(lesson => {
-      const splitWeek = settings.splitWeek ?? 10;
-      const wCourseId = (isTwoCourses && lesson.weekNumber > splitWeek) ? 'A2' : 'A1';
-      const wCourseSettings = settings.courses.find(c => c.id === wCourseId);
-
-      // 格式：代碼-內容；有微調則「代碼m-(微調後)內容」
-      let parsedIndicators = '';
-      if (lesson.learningPerformances.length > 0) {
-        parsedIndicators = lesson.learningPerformances.map(code => {
-          const adj = lesson.performanceAdjustments[code];
-          const originalObj = (allKnownIndicators as any[]).find((d:any) => d.code === code);
-          const originalContent = originalObj ? originalObj.content : '';
-          if (adj?.adjusted) {
-            return `${code}m-${adj.adjustedDesc}`;
-          }
-          return `${code}-${originalContent}`;
-        }).join('\n');
-      }
-
-      const issuesStr = lesson.issues.length > 0 ? lesson.issues.join('、') : '無';
-      // 週次格式：統一只顯示週次與日期
-      const weekLabel = `第${zhNumbers[lesson.weekNumber] || lesson.weekNumber}週\n(${lesson.dateRange})`;
-
-      return {
-        Week: weekLabel,
-        LessonFocus: lesson.lessonFocus,
-        IndRuns: formatRichText(parsedIndicators),
-        Assessment: assessmentOptions.map(opt => lesson.assessmentMethods.includes(opt) ? `◼︎${opt}` : `□${opt}`).join('  '),
-        Issues: issuesStr,
-        Notes: lesson.notes
-      };
-    });
+    // (已移至下方動態調整邏輯中處理週次資料)
 
     // 建立領域字串
     const buildDomainStr = (cs: any) => {
@@ -134,14 +102,12 @@ export async function exportCurriculumToWord(state: AppState, courseId: 'A1' | '
       }).join('\n');
     }
 
-    // 將週次資料整理成編號過的扁平物件，以對應靜態範本中的格子
-    const flattenedData: Record<string, any> = {};
-    for (let i = 0; i < 21; i++) {
+    const totalWeeksVisible = settings.semester === '1' ? 21 : 20;
+    
+    const formattedWeeks = [];
+    for (let i = 0; i < totalWeeksVisible; i++) {
         const lesson = activeLessons[i];
         if (lesson) {
-            const splitWeek = settings.splitWeek ?? 10;
-            const wCourseId = (isTwoCourses && lesson.weekNumber > splitWeek) ? 'A2' : 'A1';
-            
             let parsedIndicators = '';
             if (lesson.learningPerformances.length > 0) {
               parsedIndicators = lesson.learningPerformances.map(code => {
@@ -156,22 +122,17 @@ export async function exportCurriculumToWord(state: AppState, courseId: 'A1' | '
             }
 
             const issuesStr = lesson.issues.length > 0 ? lesson.issues.join('、') : '無';
+            // 週次格式：第X週 \n (MM/DD ~ MM/DD)
             const weekLabel = `第${zhNumbers[lesson.weekNumber] || lesson.weekNumber}週\n(${lesson.dateRange})`;
 
-            flattenedData[`Week${i}_WeekLabel`] = weekLabel;
-            flattenedData[`Week${i}_LessonFocus`] = lesson.lessonFocus;
-            flattenedData[`Week${i}_IndRuns`] = formatRichText(parsedIndicators);
-            flattenedData[`Week${i}_Assessment`] = assessmentOptions.map(opt => lesson.assessmentMethods.includes(opt) ? `◼︎${opt}` : `□${opt}`).join('  ');
-            flattenedData[`Week${i}_Issues`] = issuesStr;
-            flattenedData[`Week${i}_Notes`] = lesson.notes;
-        } else {
-            // 補齊空的週次格式
-            flattenedData[`Week${i}_WeekLabel`] = '';
-            flattenedData[`Week${i}_LessonFocus`] = '';
-            flattenedData[`Week${i}_IndRuns`] = [];
-            flattenedData[`Week${i}_Assessment`] = assessmentOptions.map(() => `□`).join('  ');
-            flattenedData[`Week${i}_Issues`] = '';
-            flattenedData[`Week${i}_Notes`] = '';
+            formattedWeeks.push({
+                WeekLabel: weekLabel,
+                LessonFocus: lesson.lessonFocus,
+                IndRuns: formatRichText(parsedIndicators),
+                Assessment: assessmentOptions.map(opt => lesson.assessmentMethods.includes(opt) ? `◼︎${opt}` : `□${opt}`).join('  '),
+                Issues: issuesStr,
+                Notes: lesson.notes
+            });
         }
     }
 
@@ -189,7 +150,7 @@ export async function exportCurriculumToWord(state: AppState, courseId: 'A1' | '
       isFirstSemester: settings.semester === '1',
       isSecondSemester: settings.semester === '2',
       CourseDescription: a1Settings?.description || '',
-      ...flattenedData
+      Weeks: formattedWeeks
     });
 
     const out = doc.getZip().generate({
