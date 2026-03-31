@@ -105,8 +105,25 @@ export async function exportCurriculumToWord(state: AppState, courseId: 'A1' | '
     const totalWeeksVisible = settings.semester === '1' ? 21 : 20;
     
     const formattedWeeks = [];
+    const baseDate = new Date(settings.startDate || new Date());
+    const formatDateShort = (d: Date) => `${(d.getMonth()+1).toString().padStart(2,'0')}/${d.getDate().toString().padStart(2,'0')}`;
+
     for (let i = 0; i < totalWeeksVisible; i++) {
         const lesson = activeLessons[i];
+        
+        // 如果沒有課程資料，我們根據開學日期手動推算那一週的日期範圍
+        let currentWeekLabel = '';
+        if (lesson) {
+            currentWeekLabel = `第${zhNumbers[lesson.weekNumber] || lesson.weekNumber}週\n(${lesson.dateRange})`;
+        } else {
+            const start = new Date(baseDate);
+            start.setDate(start.getDate() + i * 7);
+            const end = new Date(start);
+            end.setDate(end.getDate() + 4);
+            const dateRange = `${formatDateShort(start)} ~ ${formatDateShort(end)}`;
+            currentWeekLabel = `第${zhNumbers[i+1]}週\n(${dateRange})`;
+        }
+
         if (lesson) {
             let parsedIndicators = '';
             if (lesson.learningPerformances.length > 0) {
@@ -122,16 +139,24 @@ export async function exportCurriculumToWord(state: AppState, courseId: 'A1' | '
             }
 
             const issuesStr = lesson.issues.length > 0 ? lesson.issues.join('、') : '無';
-            // 週次格式：第X週 \n (MM/DD ~ MM/DD)
-            const weekLabel = `第${zhNumbers[lesson.weekNumber] || lesson.weekNumber}週\n(${lesson.dateRange})`;
 
             formattedWeeks.push({
-                WeekLabel: weekLabel,
+                WeekLabel: currentWeekLabel,
                 LessonFocus: lesson.lessonFocus,
                 IndRuns: formatRichText(parsedIndicators),
                 Assessment: assessmentOptions.map(opt => lesson.assessmentMethods.includes(opt) ? `◼︎${opt}` : `□${opt}`).join('  '),
                 Issues: issuesStr,
                 Notes: lesson.notes
+            });
+        } else {
+            // 補齊空白週次，但保有正確的日期標籤
+            formattedWeeks.push({
+                WeekLabel: currentWeekLabel,
+                LessonFocus: '',
+                IndRuns: [],
+                Assessment: assessmentOptions.map(opt => `□${opt}`).join('  '),
+                Issues: '',
+                Notes: ''
             });
         }
     }
