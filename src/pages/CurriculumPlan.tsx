@@ -211,13 +211,28 @@ ${courseSection}
 }`;
 
       const result = await model.generateContent(prompt);
-      let responseText = result.response.text().trim();
-      if (responseText.startsWith('```json')) {
-        responseText = responseText.replace(/^```json/, '').replace(/```$/, '').trim();
-      }
-      if (responseText.startsWith('```')) {
-        responseText = responseText.replace(/^```/, '').replace(/```$/, '').trim();
-      }
+      const rawText = result.response.text();
+      
+      // --- 強化的 JSON 提取器 (Robust JSON Extractor) ---
+      const extractJson = (text: string) => {
+        // 1. 優先嘗試尋找 Markdown JSON 區塊
+        const markdownMatch = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+        if (markdownMatch) return markdownMatch[1].trim();
+
+        // 2. 尋找第一個 [ 或 { 以及最後一個 ] 或 }
+        const start = Math.min(
+          text.indexOf('[') === -1 ? Infinity : text.indexOf('['),
+          text.indexOf('{') === -1 ? Infinity : text.indexOf('{')
+        );
+        const end = Math.max(text.lastIndexOf(']'), text.lastIndexOf('}'));
+        
+        if (start !== Infinity && end !== -1 && start < end) {
+          return text.substring(start, end + 1).trim();
+        }
+        return text.trim();
+      };
+
+      const responseText = extractJson(rawText);
 
       const generatedData = JSON.parse(responseText);
       const generatedWeeks = generatedData.weeks || [];
