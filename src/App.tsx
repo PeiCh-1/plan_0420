@@ -1,23 +1,39 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, NavLink, Navigate } from 'react-router-dom';
 import { Settings as SettingsIcon, Calendar, FileEdit } from 'lucide-react';
-import { AppProvider } from './store/AppContext';
+import { useAppContext, AppProvider } from './store/AppContext';
+import { Lock } from 'lucide-react';
 
-// Placeholder components
+// 頁面組件匯入
 import BasicSettings from './pages/BasicSettings';
 import CurriculumPlan from './pages/CurriculumPlan';
 import IgpAdjustments from './pages/IgpAdjustments';
 
 const Sidebar = () => {
-  const getNavClass = ({ isActive }: { isActive: boolean }) => 
-    `flex items-center gap-4 p-4 rounded-xl transition-all ${
-      isActive 
-        ? 'glass font-bold text-indigo-600' 
-        : 'hover:bg-white/50 text-gray-600'
+  const { state } = useAppContext();
+  const { settings, lessonsA1 } = state;
+
+  // 1. 檢查基本設定是否完成
+  const isBasicSettingsDone = !!(
+    settings.academicYear && 
+    settings.grade && 
+    settings.courses[0]?.mode
+  );
+
+  // 2. 檢查課程規劃是否完成 (至少有一週有單元重點)
+  const isPlanningDone = lessonsA1.length > 0 && lessonsA1.some(l => l.lessonFocus || l.learningPerformances.length > 0);
+
+  const getNavClass = (isActive: boolean, isDisabled: boolean) => 
+    `flex items-center justify-between p-4 rounded-xl transition-all ${
+      isDisabled 
+        ? 'opacity-40 cursor-not-allowed text-gray-400'
+        : isActive 
+          ? 'glass font-bold text-indigo-600 bg-white/40 shadow-sm' 
+          : 'hover:bg-white/50 text-gray-600'
     }`;
 
   return (
-    <div className="sidebar glass-panel shadow-2xl z-10 p-6 flex-col justify-between">
+    <div className="sidebar glass-panel shadow-2xl z-10 p-6 flex flex-col justify-between h-screen sticky top-0">
       <div>
         <div className="flex items-center gap-3 mb-10 mt-2 px-2">
           <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-500 to-emerald-400 flex items-center justify-center text-white font-bold text-xl shadow-lg">資</div>
@@ -25,23 +41,41 @@ const Sidebar = () => {
         </div>
         
         <nav className="flex flex-col gap-3">
-          <NavLink to="/settings" className={getNavClass}>
-            <SettingsIcon size={20} />
-            <span>基本設定</span>
+          <NavLink to="/settings" className={({ isActive }) => getNavClass(isActive, false)}>
+            <div className="flex items-center gap-4">
+              <SettingsIcon size={20} />
+              <span>基本設定</span>
+            </div>
           </NavLink>
-          <NavLink to="/planning" className={getNavClass}>
-            <Calendar size={20} />
-            <span>課程規劃</span>
+
+          <NavLink 
+            to={isBasicSettingsDone ? "/planning" : "#"} 
+            onClick={(e) => !isBasicSettingsDone && e.preventDefault()}
+            className={({ isActive }) => getNavClass(isActive, !isBasicSettingsDone)}
+          >
+            <div className="flex items-center gap-4">
+              <Calendar size={20} />
+              <span>課程規劃</span>
+            </div>
+            {!isBasicSettingsDone && <Lock size={14} className="text-gray-400" />}
           </NavLink>
-          <NavLink to="/igp" className={getNavClass}>
-            <FileEdit size={20} />
-            <span>IGP 個別調整</span>
+
+          <NavLink 
+            to={isPlanningDone ? "/igp" : "#"} 
+            onClick={(e) => !isPlanningDone && e.preventDefault()}
+            className={({ isActive }) => getNavClass(isActive, !isPlanningDone)}
+          >
+            <div className="flex items-center gap-4">
+              <FileEdit size={20} />
+              <span>IGP 個別調整</span>
+            </div>
+            {!isPlanningDone && <Lock size={14} className="text-gray-400" />}
           </NavLink>
         </nav>
       </div>
       
-      <div className="text-xs text-center text-gray-400 p-2">
-        Kaohsiung Gifted Curriculum System<br/>v1.0.0
+      <div className="text-[10px] text-center text-gray-400 p-2 border-t border-white/20">
+        Kaohsiung Gifted Curriculum System<br/>v1.1.0 · 行政流程優化版
       </div>
     </div>
   );

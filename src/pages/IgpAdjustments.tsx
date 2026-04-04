@@ -18,32 +18,53 @@ export default function IgpAdjustments() {
   const setActiveIgp = activeCourseId === 'A1' ? setIgpA1 : setIgpA2;
   const currentCourseSettings = settings.courses.find(c => c.id === activeCourseId);
 
-  // Derive unique indicators from curriculum plan
-  const deduplicatedCodes = Array.from(new Set(
-    activeLessons.flatMap(lesson => lesson.learningPerformances)
-  ));
+  // 1. 自動同步課程計畫指標到 IGP
+  useEffect(() => {
+    if (!activeIgp) return;
 
-  const deduplicatedIndicators = deduplicatedCodes.map(code => {
-    // 優先從週次計畫中尋找該指標是否有「調整後描述 (adjustedDesc)」
-    let adjustedContent = '';
-    for (const lesson of activeLessons) {
-      const adj = lesson.performanceAdjustments?.[code];
-      if (adj?.adjusted && adj.adjustedDesc) {
-        adjustedContent = adj.adjustedDesc;
-        break; // 找到第一個調整過的版本就以此為準
+    // 從課程計畫提取所有指標碼
+    const planIndicatorCodes = Array.from(new Set(activeLessons.flatMap(l => l.learningPerformances)));
+    
+    // 建立最新的調整清單
+    const updatedAdjustments: IgpAdjustment[] = planIndicatorCodes.map(code => {
+      // 尋找現有的 IGP 調整紀錄 (保留已生成的 AI 建議)
+      const existingAdj = activeIgp.adjustments.find(a => a.indicatorCode === code);
+      
+      // 從課程計畫抓取「初步調整描述」
+      let preliminaryDesc = '';
+      for (const lesson of activeLessons) {
+        const adj = lesson.performanceAdjustments?.[code];
+        if (adj?.adjusted && adj.adjustedDesc) {
+          preliminaryDesc = adj.adjustedDesc;
+          break;
+        }
       }
+
+      // 如果課程計畫沒調整，則用原始指標
+      const original = learningPerformancesData.find((d: any) => d.code === code);
+      const baseContent = preliminaryDesc || original?.content || '未知指標';
+
+      return {
+        indicatorCode: code,
+        originalDesc: baseContent, // 這裡的 originalDesc 實際上代表「課程層級調整後」的版本
+        adjustedDesc: existingAdj?.adjustedDesc || '', // 這是保留給 IGP 頁面 AI 生成的內容
+        contentStrategy: existingAdj?.contentStrategy || [],
+        processStrategy: existingAdj?.processStrategy || [],
+        environmentStrategy: existingAdj?.environmentStrategy || [],
+        assessmentStrategy: existingAdj?.assessmentStrategy || []
+      };
+    });
+
+    // 檢查是否真的需要更新，避免無限迴圈
+    const currentCodesJson = JSON.stringify(activeIgp.adjustments.map(a => a.indicatorCode + a.originalDesc));
+    const newCodesJson = JSON.stringify(updatedAdjustments.map(a => a.indicatorCode + a.originalDesc));
+
+    if (currentCodesJson !== newCodesJson) {
+      setActiveIgp({ ...activeIgp, adjustments: updatedAdjustments });
     }
+  }, [activeLessons, activeIgp?.studentStatus, activeCourseId]);
 
-    if (adjustedContent) {
-      return { code, content: adjustedContent, isAlreadyAdjusted: true };
-    }
-
-    // 若無調整，則從原始指標庫尋找
-    const original = learningPerformancesData.find((d: any) => d.code === code);
-    return original ? { ...original, isAlreadyAdjusted: false } : { code, content: '未知指標', isAlreadyAdjusted: false };
-  });
-
-  // Initialize IGP state if null
+  // Initialize IGP state if null (kept for stability)
   useEffect(() => {
     if (!activeIgp) {
       setActiveIgp({
@@ -55,7 +76,7 @@ export default function IgpAdjustments() {
         globalAssessmentStrategy: []
       });
     }
-  }, [activeIgp, setActiveIgp]);
+  }, [activeCourseId]);
 
   const handleStatusChange = (status: string) => {
     if (!activeIgp) return;
@@ -78,18 +99,12 @@ export default function IgpAdjustments() {
   };
 
   const generateIgpWithAI = async () => {
-    if (!apiKey) {
-      setErrorMsg('請先至基本設定填寫 Gemini API 密鑰！');
-      return;
-    }
-    if (deduplicatedIndicators.length === 0) {
+    if (!apiKey) { setErrorMsg('請先至基本設定填寫 Gemini API 密鑰！'); return; }
+    if (activeIgp?.adjustments.length === 0) {
       setErrorMsg('該課程尚未在「課程規劃」挑選任何學習表現指標，請先完成課程規劃！');
       return;
     }
-    if (!activeIgp?.studentStatus) {
-      setErrorMsg('請先填寫學生的狀況描述！');
-      return;
-    }
+    if (!activeIgp?.studentStatus) { setErrorMsg('請先填寫學生的狀況描述！'); return; }
     
     setIsGenerating(true);
     setErrorMsg('');
@@ -98,53 +113,52 @@ export default function IgpAdjustments() {
       const genAI = new GoogleGenerativeAI(apiKey);
       const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
-      const indicatorsText = deduplicatedIndicators.map(ind => `[${ind.code}] ${ind.content}`).join('\n');
+      // 這裡指標描述已經是「課程規劃調整後」的結果了
+      const indicatorsText = activeIgp.adjustments.map(ind => `[${ind.indicatorCode}] ${ind.originalDesc}`).join('\n');
 
-      const prompt = `您是一位特殊教育與資優教育專家。現在需要為一位持有 IGP 的學生進行「資優課程調整方式」的差異化設計。
+      const prompt = `您是一位特殊教育與資優教育專家。請根據已初步進行過「課程層級調整」的指標，針對學生的「個別特質」進行二次差異化設計。
 
-【學生狀態與調整需求】
+【學生狀態與個別化調整需求】
 ${activeIgp.studentStatus}
 
-【原始學習表現指標】
-只能從以下挑選：
+【課程規劃已調整之學習表現指標】
 ${indicatorsText}
 
-【改寫原則】
-1. 【非常重要】：您『只能挑選 3 到 6 項』與該名學生最切身的指標進行改寫，不要全部改寫！其餘不相關請直接省略。
-2. 改寫方式：【絕對禁止整句替換】！必須以原始指標內容作為主體（保留 80% 以上文字），增加的文字以 [+增加的字+] 包起來，刪除的文字以 [-刪除的字-] 包起來。
-3. 同時為每個已挑選的指標，根據學生狀態，從以下四面向各挑選最少 1 項（最多 3 項）最適合的調整策略：
-  學習內容調整策略：重組, 加深, 加廣, 濃縮, 加速, 跨領域/科目統整教學主題
-  學習歷程調整策略：高層次思考, 開放式問題, 發現式學習, 推理的證據, 選擇的自由, 團體式的互動, 彈性的教學進度, 多樣性的歷程
-  學習環境調整策略：調整物理的學習環境, 營造社會-情緒的學習環境, 規劃有回應的學習環境, 有挑戰性的學習環境, 調查與運用社區資源
-  學習評量調整策略：發展合適的評量工具, 訂定區分性的評量標準, 呈現多元的實作與作品
+【二次調整原則】
+1. 指標選用：請從上方清單中『挑選 3 到 6 項』與該生最切身的指標進行更深入的個別化改寫。
+2. 二次改寫方式：請保留課程規劃調整後的核心，針對學生特質再增加描述。增加的文字以 [+ +] 包起來，刪除以 [- -] 包起來。
+3. 調整策略：為挑選的指標，從內容、歷程、環境、評量四面向各選 1~3 項最適合此學生的策略。
 
-請只回傳陣列 JSON（不需要 markdown 標籤，嚴格回傳字串），包含物件結構如下：
+請回傳陣列 JSON 物件：
 [
   {
-    "indicatorCode": "原始指標代碼",
-    "adjustedDesc": "能[+運用教具+]了解分數[-概念-]",
+    "indicatorCode": "指標代碼",
+    "adjustedDesc": "針對學生特質進一步調整後的文字",
     "contentStrategy": ["加深"],
     "processStrategy": ["高層次思考"],
-    "environmentStrategy": ["調整物理的學習環境"],
-    "assessmentStrategy": ["呈現多元的實作與作品"]
+    "environmentStrategy": [...],
+    "assessmentStrategy": [...]
   }
 ]`;
 
       const result = await model.generateContent(prompt);
       let responseText = result.response.text().trim();
-      
-      if (responseText.startsWith('```json')) {
-        responseText = responseText.replace(/^```json/, '').replace(/```$/, '').trim();
-      }
+      if (responseText.startsWith('```json')) responseText = responseText.replace(/^```json/, '').replace(/```$/, '').trim();
 
       const generatedPlan = JSON.parse(responseText);
 
-      const mappedAdjustments: IgpAdjustment[] = generatedPlan.map((gen: any) => ({
-        indicatorCode: gen.indicatorCode,
-        originalDesc: deduplicatedIndicators.find((d:any)=>d.code === gen.indicatorCode)?.content || '',
-        adjustedDesc: gen.adjustedDesc || '',
-        contentStrategy: [], processStrategy: [], environmentStrategy: [], assessmentStrategy: []
-      }));
+      const newAdjustments = activeIgp.adjustments.map(adj => {
+        const gen = generatedPlan.find((g: any) => g.indicatorCode === adj.indicatorCode);
+        if (!gen) return adj;
+        return {
+          ...adj,
+          adjustedDesc: gen.adjustedDesc || adj.adjustedDesc,
+          contentStrategy: gen.contentStrategy || [],
+          processStrategy: gen.processStrategy || [],
+          environmentStrategy: gen.environmentStrategy || [],
+          assessmentStrategy: gen.assessmentStrategy || []
+        };
+      });
 
       const globalContent = Array.from(new Set(generatedPlan.flatMap((g:any) => g.contentStrategy || []))) as string[];
       const globalProcess = Array.from(new Set(generatedPlan.flatMap((g:any) => g.processStrategy || []))) as string[];
@@ -153,7 +167,7 @@ ${indicatorsText}
 
       setActiveIgp({ 
         ...activeIgp, 
-        adjustments: mappedAdjustments,
+        adjustments: newAdjustments,
         globalContentStrategy: globalContent,
         globalProcessStrategy: globalProcess,
         globalEnvironmentStrategy: globalEnv,
@@ -232,13 +246,15 @@ ${indicatorsText}
       )}
 
       <div className="glass p-6 rounded-2xl border-l-4 border-l-fuchsia-500">
-        <h2 className="text-xl font-bold mb-4">1. 自動匯入課程學習表現 ({deduplicatedCodes.length} 項)</h2>
+        <h2 className="text-xl font-bold mb-4">1. 自動匯入課程學習表現 ({activeIgp.adjustments.length} 項)</h2>
         <div className="flex flex-wrap gap-2 mb-4">
-          {deduplicatedCodes.length === 0 ? (
+          {activeIgp.adjustments.length === 0 ? (
             <div className="text-gray-400 italic">尚無指標，請先在課程規劃中生成或挑選。</div>
           ) : (
-            deduplicatedCodes.map(code => (
-              <span key={code} className="px-2 py-1 bg-gray-100 border border-gray-200 text-sm rounded-md text-gray-700">{code}</span>
+            activeIgp.adjustments.map(adj => (
+              <span key={adj.indicatorCode} className="px-2 py-1 bg-gray-100 border border-gray-200 text-sm rounded-md text-gray-700">
+                {adj.indicatorCode}
+              </span>
             ))
           )}
         </div>

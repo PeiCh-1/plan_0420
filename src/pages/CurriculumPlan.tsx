@@ -354,36 +354,40 @@ ${courseSection}
                         {lesson.learningPerformances.length === 0 ? (
                           <span className="text-gray-400 italic">無設定指標</span>
                         ) : (
-                          <div className="space-y-2">
+                          <div className="space-y-3">
                             {lesson.learningPerformances.map(code => {
                               const adj = lesson.performanceAdjustments[code];
+                              const originalContent = learningPerformancesData.find((l:any) => l.code === code)?.content || '';
+                              const displayValue = adj?.adjusted ? adj.adjustedDesc : originalContent;
+                              
                               return (
-                                <div key={code} className={`p-2 rounded border group/ind ${adj?.adjusted ? 'border-amber-300 bg-amber-50' : 'border-gray-100 bg-white relative'}`}>
-                                  <div className="font-bold flex items-center justify-between">
-                                    <span>{code}</span>
+                                <div key={code} className={`p-3 rounded-xl border transition-all ${adj?.adjusted ? 'border-amber-300 bg-amber-50/80 shadow-sm' : 'border-gray-100 bg-white relative'}`}>
+                                  <div className="flex items-center justify-between mb-2">
+                                    <span className="font-bold text-indigo-900 bg-indigo-50 px-2 py-0.5 rounded text-xs">{code}</span>
                                     <div className="flex items-center gap-2">
-                                      {adj?.adjusted && <span className="text-xs bg-red-500 text-white px-1.5 py-0.5 rounded font-bold">m (調整)</span>}
+                                      {adj?.adjusted && (
+                                        <span className="text-[10px] bg-red-500 text-white px-1.5 py-0.5 rounded shadow-sm font-black animate-pulse">m (調整)</span>
+                                      )}
                                       <button 
                                         onClick={() => handleLessonUpdate(lesson.weekNumber, { learningPerformances: lesson.learningPerformances.filter(c => c !== code) })}
-                                        className="text-gray-400 hover:text-red-500 opacity-0 group-hover/ind:opacity-100 transition-opacity flex-shrink-0"
+                                        className="text-gray-300 hover:text-red-500 transition-colors"
                                         title="移除此指標"
                                       >✕</button>
                                     </div>
                                   </div>
-                                  <div className="mt-1">
-                                    <textarea 
-                                      className="w-full text-sm border-gray-200 border rounded p-2 focus:ring-1 focus:ring-indigo-300 resize-y min-h-16 mt-1 text-gray-700 bg-white"
-                                      value={adj?.adjustedDesc || learningPerformancesData.find((l:any) => l.code === code)?.content || ''}
-                                      onChange={(e) => {
-                                        handleLessonUpdate(lesson.weekNumber, {
-                                          performanceAdjustments: {
-                                            ...lesson.performanceAdjustments,
-                                            [code]: { ...adj, adjusted: true, adjustedDesc: e.target.value }
-                                          }
-                                        });
-                                      }}
-                                    />
-                                  </div>
+                                  <textarea 
+                                    className="w-full text-sm border-gray-200 border rounded-lg p-2 focus:ring-2 focus:ring-amber-300 resize-y min-h-[80px] bg-white/90 shadow-inner"
+                                    value={displayValue}
+                                    placeholder="指標內容..."
+                                    onChange={(e) => {
+                                      handleLessonUpdate(lesson.weekNumber, {
+                                        performanceAdjustments: {
+                                          ...lesson.performanceAdjustments,
+                                          [code]: { adjusted: true, adjustedDesc: e.target.value }
+                                        }
+                                      });
+                                    }}
+                                  />
                                 </div>
                               );
                             })}
