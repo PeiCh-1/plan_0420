@@ -138,7 +138,7 @@ export default function CurriculumPlan() {
 
     try {
       const genAI = new GoogleGenerativeAI(apiKey);
-      const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+      const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
 
       // 建立指標、議題、評量選項等參考文字
       const buildIndicatorText = (courseId: 'A1' | 'A2') =>
