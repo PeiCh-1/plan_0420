@@ -111,7 +111,7 @@ export default function IgpAdjustments() {
 
     try {
       const genAI = new GoogleGenerativeAI(apiKey);
-      const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
       // 這裡指標描述已經是「課程規劃調整後」的結果了
       const indicatorsText = activeIgp.adjustments.map(ind => `[${ind.indicatorCode}] ${ind.originalDesc}`).join('\n');
