@@ -30,11 +30,11 @@ function tsvToJson(srcPath, destPath) {
 }
 
 tsvToJson(
-  '/Users/peiching/Desktop/Antigravity_Sandbox/課程計劃草稿/資優課程計劃平台 - 學習表現指標.tsv', 
-  '/Users/peiching/Desktop/Antigravity_Sandbox/gifted-curriculum-platform/src/data/learning_performances.json'
+  path.join(__dirname, '../data/source/資優課程計劃平台 - 學習表現指標.tsv'), 
+  path.join(__dirname, '../src/data/learning_performances.json')
 );
 
 tsvToJson(
-  '/Users/peiching/Desktop/Antigravity_Sandbox/課程計劃草稿/資優課程計劃平台 - 核心素養.tsv', 
-  '/Users/peiching/Desktop/Antigravity_Sandbox/gifted-curriculum-platform/src/data/core_competencies.json'
+  path.join(__dirname, '../data/source/資優課程計劃平台 - 核心素養.tsv'), 
+  path.join(__dirname, '../src/data/core_competencies.json')
 );
