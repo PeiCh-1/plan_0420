@@ -146,7 +146,10 @@ ${indicatorsText}
 
       const callAiWithFallback = async (modelName: string): Promise<any> => {
         try {
-          const model = genAI.getGenerativeModel({ model: modelName });
+          const model = genAI.getGenerativeModel(
+            { model: modelName },
+            { apiVersion: 'v1' }
+          );
           return await model.generateContent(prompt);
         } catch (err: any) {
           if (modelName === 'gemini-2.5-flash' && (err.message?.includes('503') || err.message?.includes('high demand'))) {
