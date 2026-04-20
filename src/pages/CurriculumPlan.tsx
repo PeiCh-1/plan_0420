@@ -156,6 +156,79 @@ export default function CurriculumPlan() {
         }
       };
 
+      // 建立指標、議題、評量選項等參考文字
+      const buildIndicatorText = (courseId: 'A1' | 'A2') =>
+        getApplicableIndicators(courseId).map((ind: any) => `[${ind.code}] ${ind.content}`).join('\n');
+
+      const a2Settings = settings.courses.find(c => c.id === 'A2');
+
+      let courseSection = '';
+      if (isTwoCourses && a2Settings) {
+        courseSection = `
+【A1 課程】（第 1～${splitWeek} 週）
+領域/科目：${a1Settings.name}
+課程描述：${a1Settings.description || '無'}
+學習表現指標庫（A1）：
+${buildIndicatorText('A1')}
+
+【A2 課程】（第 ${splitWeek + 1}～${totalWeeks} 週）
+領域/科目：${a2Settings.name}
+課程描述：${a2Settings.description || '無'}
+學習表現指標庫（A2）：
+${buildIndicatorText('A2')}
+`;
+      } else {
+        courseSection = `
+領域/科目：${a1Settings.name}
+課程描述：${a1Settings.description || '無'}
+學習表現指標庫：
+${buildIndicatorText('A1')}
+`;
+      }
+
+      const prompt = `您是一位高雄市專業的資優教育教師與課程設計專家，請為我規劃一整學期的教學進度與課程總目標。
+【課程設定】
+學期週數：${totalWeeks} 週
+對象年級：${settings.grade}年級
+${courseSection}
+
+【行政選項參考 (選填)】
+可選評量方式：'口語評量','實作評量','紙筆測驗','檔案評量','觀察評量','動態評量','自我評量','同儕評量'
+可選融入議題：'性別平等教育','人權教育','環境教育','海洋教育','品德教育','生命教育','法治教育','科技教育','資訊教育','安全教育','防災教育','原住民族教育','多元文化教育','閱讀素養教育','家庭教育','生涯規劃教育','能源教育','媒體素養教育','戶外教育'
+
+【任務要求】
+1. 生成「課程總體學習目標」：應嚴格按照「認知、情意、技能」三大面向列出，且每面向各產出 2~4 點。匯整為列點顯示，禁止標註面向名稱。
+2. 規劃每週進度：
+   - 每週挑選 1~2 個最切合的指標代碼。
+   - **【實質改寫原則】**：調整修正應具備「資優教學策略」描述（例如將「創作故事」改為「應用創意技法創作故事」）。**必須以原版內容為底稿進行增修，嚴禁完全推翻或改寫原先的學習表現文句。**
+   - **【數量限制原則】**：全學期僅針對最核心、必要更改的 **3~6 個** 學習表現指標進行標記調整即可，不需每週改寫，嚴禁僅進行不具專業意義的名詞替代（如將「多元文本」改為「故事文本」）。
+【標記語法規範】：必須以原始指標內容為底稿。
+   - **原則**：標點符號（如句號、逗號）應視為同一修正段落文字。**請將標點符號包含在括號內（預防出現多餘括號）。**
+   - **正確格式**：每一項變動必須獨立完整。刪除為 [-內容。-] ，新增為 [+內容。+] 。
+   - **單元重點字數限制**：單元重點 (lessonFocus) 只能根據課程內容生成 **10 個字以內** 的重點。
+   - **同步勾選行政欄位**：請根據每週教學重點，自動挑選最適合的「評量方式」以及必要融入的「議題」。
+
+【JSON 格式規範 (極度重要)】
+請務必回傳純 JSON 物件，格式如下：
+{
+  "courseGoalsA1": "認知：1... 2...\\n情意：1... 2...\\n技能：1... 2...",
+  "courseGoalsA2": "同上格式 (若無雙門課則忽略)",
+  "weeks": [
+    {
+      "weekNumber": 1,
+      "courseId": "A1",
+      "indicators": [
+        { "code": "實體代碼", "adjusted": true, "adjustedDesc": "指標內容[+新增描述+][-刪除描述-]" }
+      ],
+      "lessonFocus": "10字內單元亮點",
+      "assessmentMethods": ["口語評量"],
+      "issues": ["人權教育"]
+    },
+    ...累計產出 ${totalWeeks} 週，不可缺漏。
+  ]
+}
+請確保指標代碼 (code) 必須完全存在於我提供的指標庫中。`;
+
       const result = await callAiWithRetry();
 
       // 建立指標、議題、評量選項等參考文字
